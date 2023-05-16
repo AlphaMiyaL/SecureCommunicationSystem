@@ -6,48 +6,11 @@ from receiver import Receiver
 from sender import Sender
 
 if __name__ == '__main__':
-    # Generate RSA key pair for sender
-    sender_private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
-    )
-    # Serialize the sender's public key
-    sender_public_key = sender_private_key.public_key()
-    sender_public_key_pem = sender_public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    # Serialize the sender's private key
-    sender_private_key_pem = sender_private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    )
-
-    # Generate RSA key pair for receiver
-    receiver_private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
-    )
-    # Serialize the receiver's public key
-    receiver_public_key = receiver_private_key.public_key()
-    receiver_public_key_pem = receiver_public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    )
-    # Serialize the receiver's private key
-    receiver_private_key_pem = receiver_private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    )
-
+    sender_public_key_filepath = "Files/sender_public_key.txt"
+    receiver_public_key_filepath = "Files/receiver_public_key.txt"
     message_filepath = "Files/plaintext_message.txt"
     transmit_data_filepath = "Files/transmitted_data.txt"
-    sender = Sender(receiver_public_key_pem, sender_private_key_pem)
+    sender = Sender(sender_public_key_filepath, receiver_public_key_filepath)
+    receiver = Receiver(receiver_public_key_filepath, sender_public_key_filepath)
     sender.send_encrypted_message(message_filepath, transmit_data_filepath)
-
-    receiver = Receiver(receiver_private_key_pem, sender_public_key_pem)
     receiver.receive_encrypted_message(transmit_data_filepath)

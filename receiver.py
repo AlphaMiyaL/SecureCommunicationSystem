@@ -5,14 +5,17 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.asymmetric import padding as asymmetric_padding
-
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 
 class Receiver:
-    def __init__(self, private_rsa_key, public_rsa_key):
-        self.private_key = private_rsa_key
-        self.public_key = public_rsa_key
+    def __init__(self, receiver_public_key_file, sender_public_key_file):
+        self.private_key = self.__generate_rsa_keys(receiver_public_key_file)
+        self.public_key = None
+        self.sender_public_key_loc = sender_public_key_file
 
     def receive_encrypted_message(self, transmit_file):
+        self.__obtain_sender_public_key()
         encrypted_message, encrypted_key, mac, signature, iv = self.__load_transmitted_data(transmit_file)
         # print("Receiver; en_message:", encrypted_message)
         # print("Receiver; mac:", mac)
@@ -24,6 +27,33 @@ class Receiver:
             print("Decoded Message:", decrypted_message)
         else:
             print("Invalid signature.")
+
+    def __generate_rsa_keys(self, receiver_public_key_file):
+        # Generate RSA key pair for receiver
+        receiver_private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+        # Serialize the receiver's public key
+        receiver_public_key = receiver_private_key.public_key()
+        receiver_public_key_pem = receiver_public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        # Serialize the receiver's private key
+        receiver_private_key_pem = receiver_private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+        with open(receiver_public_key_file, 'wb') as file:
+            file.write(receiver_public_key_pem)
+        return receiver_private_key_pem
+
+    def __obtain_sender_public_key(self):
+        with open(self.sender_public_key_loc, 'rb') as file:
+            self.public_key = file.read()
 
     def __load_transmitted_data(self, transmit_file):
         with open(transmit_file, 'rb') as file:
