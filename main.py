@@ -2,6 +2,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from receiver import Receiver
 from sender import Sender
 
 if __name__ == '__main__':
@@ -36,8 +37,17 @@ if __name__ == '__main__':
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
+    # Serialize the receiver's private key
+    receiver_private_key_pem = receiver_private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
 
     message_filepath = "Files/plaintext_message.txt"
     transmit_data_filepath = "Files/transmitted_data.txt"
     sender = Sender(receiver_public_key_pem, sender_private_key_pem)
     sender.send_encrypted_message(message_filepath, transmit_data_filepath)
+
+    receiver = Receiver(receiver_private_key_pem, sender_public_key_pem)
+    receiver.receive_encrypted_message(transmit_data_filepath)

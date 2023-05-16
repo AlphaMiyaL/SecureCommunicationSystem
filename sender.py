@@ -14,11 +14,16 @@ class Sender:
     def send_encrypted_message(self, message_file, transmit_file):
         aes_key = self.__generate_aes_key()
         message = self.__extract_message(message_file)
-        encrypted_message = self.__encrypt_message(aes_key, message)
+        iv, encrypted_message = self.__encrypt_message(aes_key, message)
         encrypted_key = self.__encrypt_key(aes_key)
-        mac = self.__compute_mac(aes_key, encrypted_message)
+        mac = self.__compute_mac(aes_key, iv, encrypted_message)
         signature = self.__sign_mac(mac)
-        self.transmit_data(transmit_file, encrypted_message, encrypted_key, signature)
+        self.transmit_data(transmit_file, encrypted_key, iv, mac, signature, encrypted_message)
+        # print("iv: ", iv)
+        # print("Sender; message:", message)
+        # print("Sender; en_message:", encrypted_message)
+        # print("Sender; mac:", mac)
+        # print("Sender; signature:", signature)
 
     def __generate_aes_key(self):
         aes_key = os.urandom(32)
@@ -30,14 +35,14 @@ class Sender:
             return message
 
     def __encrypt_message(self, aes_key, message):
-        self.iv = os.urandom(16)
-        cipher = Cipher(algorithms.AES(aes_key), modes.CBC(self.iv), backend=default_backend())
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(aes_key), modes.CBC(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         padder = padding.PKCS7(algorithms.AES.block_size).padder()
 
         padded_message = padder.update(message) + padder.finalize()
         encrypted_message = encryptor.update(padded_message) + encryptor.finalize()
-        return encrypted_message
+        return iv, encrypted_message
 
     def __encrypt_key(self, aes_key):
         public_key = load_pem_public_key(self.public_key, backend=default_backend())
@@ -48,10 +53,10 @@ class Sender:
         ))
         return encrypted_aes_key
 
-    def __compute_mac(self, aes_key, encrypted_message):
+    def __compute_mac(self, aes_key, iv, encrypted_message):
         h = hashes.Hash(hashes.SHA256(), backend=default_backend())
         h.update(aes_key)
-        h.update(self.iv)
+        h.update(iv)
         h.update(encrypted_message)
         mac = h.finalize()
         return mac
@@ -68,8 +73,15 @@ class Sender:
         return signature
 
     # does not actually transmit data, simply places in a file given
-    def transmit_data(self, filepath, encrypted_message, encrypted_key, signature):
+    def transmit_data(self, filepath, encrypted_key, iv, mac, signature, encrypted_message):
+        # print("Encrypted Message Size:", len(encrypted_message))
+        # print("Encrypted Key Size:", len(encrypted_key))
+        # print("MAC Size:", len(mac))
+        # print("iv Size:", len(iv))
+        # print("Signature Size:", len(signature))
         with open(filepath, 'wb') as file:
-            file.write(encrypted_message)
             file.write(encrypted_key)
+            file.write(iv)
+            file.write(mac)
             file.write(signature)
+            file.write(encrypted_message)
